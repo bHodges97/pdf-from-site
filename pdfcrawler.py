@@ -4,10 +4,13 @@ from html.parser import HTMLParser
 from collections import defaultdict
 import tempfile
 import subprocess
-import nltk
 import csv
+import nltk
 from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+stopwords = set(stopwords.words('english'))
 nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
 
 class PDFFinder(HTMLParser):
     def __init__(self):
@@ -44,8 +47,10 @@ for url in pdflist:
         words = word_tokenize(result)
         words = [word.lower() for word in words if word.isalpha()]#strip garbage
         t_freq = defaultdict(int)
-        for word in words:
-            t_freq[word] += 1
+        tagged = nltk.pos_tag(words)
+        for word,tag in tagged:
+            if tag[:2] == 'NN' and len(word) > 1 and word not in stopwords:
+                t_freq[word] += 1
         for word,count in t_freq.items():
             term_frequency[word]+=count
         document_frequency.append((doc_name,t_freq))
