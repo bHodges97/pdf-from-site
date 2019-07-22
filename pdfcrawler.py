@@ -74,10 +74,8 @@ def download(file_path):
         return err.code
     return 200
 
-html = ""
 with urlopen(url) as responce:
-    for line in responce:
-        html += (line.decode("utf-8"))
+    html = responce.read().decode('utf-8')
 publications = PDFFinder().feed(html)
 
 print("Writing papers.csv")
