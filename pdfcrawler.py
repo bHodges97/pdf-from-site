@@ -9,11 +9,17 @@ import nltk
 import json
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
+
+
+nltk.download('averaged_perceptron_tagger',quiet=True)
+nltk.download('wordnet',quiet=True)
+nltk.download('stopwords',quiet=True)
+nltk.download('punkt',quiet=True)
+
+
 pdf_stopwords = set(stopwords.words('english'))
 pdf_stopwords.update(stopwords.words('german'))
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-
 url = "https://hps.vi4io.org/research/publications?csvlist"
 base_url = 'https://hps.vi4io.org'
 
@@ -73,6 +79,7 @@ with open("papers.csv","w",encoding='utf-8') as f:
 
 term_frequency = defaultdict(int)
 pdf_association = defaultdict(dict)
+stemmer = WordNetLemmatizer()
 
 for idx,url,html in publications:
     print(idx,url)
@@ -95,6 +102,8 @@ for idx,url,html in publications:
         t_freq = defaultdict(int)
         tagged = nltk.pos_tag(words)
         for word,tag in tagged:
+            if tag == 'NNS':
+                word = stemmer.lemmatize(word)
             if tag[:2] == 'NN' and len(word) > 1 and word not in pdf_stopwords:
                 t_freq[word] += 1
         for word,count in t_freq.items():
@@ -109,16 +118,16 @@ for idx,url,html in publications:
 
 print("Writing freq_data.csv")
 with open("freq_data.csv","w",encoding='utf-8') as f:
-    s = sorted(term_frequency.items(), key=lambda kv: kv[1])[-150:]
+    s = sorted(term_frequency.items(), key=lambda kv: kv[1],reverse=True)#[:200]
     c = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-    for word,count in reversed(s):
+    for word,count in s:
         associated = pdf_association[word]
         if len(associated) > 20:
-            associated = sorted(associated.items(), key=lambda kv:kv[1])
-            associated = associated[-20::-1]
+            associated = sorted(associated.items(), key=lambda kv:kv[1],reverse=True)
+            associated = associated[:20]
             associated = {k:v for k,v in associated}
         c.writerow((word,count,associated))#json.dumps(associated)))#using json for parsing in javascript
-        if count <= 2:
+        if count <= 250:
             break
 
 #print(pdf)
