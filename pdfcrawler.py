@@ -2,10 +2,10 @@ from urllib.request import urlopen
 from urllib.error import HTTPError
 from html.parser import HTMLParser
 from collections import defaultdict
+from os import path
 import tempfile
 import subprocess
 import csv
-import os.path
 import nltk
 import json
 from nltk.tokenize import word_tokenize
@@ -65,6 +65,14 @@ class PDFFinder(HTMLParser):
         super().feed(data)
         return self.elements
 
+def download(file_path):
+    try:
+        pdf = urlopen(url).read()
+        with open(file_path, "bw") as fp:
+            fp.write(pdf)
+    except HTTPError as err:
+        return err.code
+    return 200
 
 html = ""
 with urlopen(url) as responce:
@@ -87,45 +95,42 @@ for idx,url,html in publications:
     if len(url) < 1:
         print("Empty")
         continue
-    try:
-        local_copy = url.replace("https://hps.vi4io.org/_", "../../data/x")
-        if os.path.isfile(local_copy):
-          print ("using local copy")
-          file_name = local_copy
+
+    file_path = url.replace("https://hps.vi4io.org/_", "../../data/x")
+    if path.isfile(file_path):
+        print("Using local copy")
+    else:
+        file_path = url.split('/')[-1]
+        if path.isfile(file_path):
+            print("Using cached value")
         else:
-          doc_name = url.split('/')[-1]
-          if os.path.isfile(doc_name):
-            print("using cached value")
-          else:
-            pdf = urlopen(url).read()
-            fp = open(doc_name, "bw")
-            fp.write(pdf)
-            fp.close()
-          file_name = doc_name
-        print(file_name)
-        filetype = subprocess.run(["file","-i",file_name], stdout=subprocess.PIPE).stdout.decode('utf-8')
-        if "pdf" not in filetype:
-            print("Not pdf",filetype.split(":",1)[1],end='')
-            continue
-        result = subprocess.run(["pdftotext",file_name,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
+            print("Downloading pdf")
+            status = download(file_path)
+            if status != 200:
+                print("Error", status)
+                continue
 
-        words = word_tokenize(result)
-        words = [word.lower() for word in words if word.isalpha()]#strip garbage
-        t_freq = defaultdict(int)
-        tagged = nltk.pos_tag(words)
-        for word,tag in tagged:
-            if tag == 'NNS':
-                word = stemmer.lemmatize(word)
-            if tag[:2] == 'NN' and len(word) > 1 and word not in pdf_stopwords:
-                t_freq[word] += 1
-        for word,count in t_freq.items():
-            term_frequency[word]+=count
-            pdf_association[word][idx] = count
-        del t_freq
-        print("Done")
+    filetype = subprocess.run(["file","-i",file_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+    if "pdf" not in filetype:
+        print("Not pdf",filetype.split(":",1)[1],end='')
+        continue
+    result = subprocess.run(["pdftotext",file_path,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
-    except HTTPError as err:
-        print("Error",err.code)
+    words = word_tokenize(result)
+    words = [word.lower() for word in words if word.isalpha()]#strip garbage
+    t_freq = defaultdict(int)
+    tagged = nltk.pos_tag(words)
+    for word,tag in tagged:
+        if tag == 'NNS':
+            word = stemmer.lemmatize(word)
+        if tag[:2] == 'NN' and len(word) > 1 and word not in pdf_stopwords:
+            t_freq[word] += 1
+    for word,count in t_freq.items():
+        term_frequency[word]+=count
+        pdf_association[word][idx] = count
+    del t_freq
+    print("Done")
+
 
 
 print("Writing freq_data.csv")
