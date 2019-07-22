@@ -5,6 +5,7 @@ from collections import defaultdict
 import tempfile
 import subprocess
 import csv
+import os.path
 import nltk
 import json
 from nltk.tokenize import word_tokenize
@@ -82,20 +83,31 @@ pdf_association = defaultdict(dict)
 stemmer = WordNetLemmatizer()
 
 for idx,url,html in publications:
-    print(idx,url)
+    print(idx, url)
     if len(url) < 1:
         print("Empty")
         continue
     try:
-        pdf = urlopen(url).read()
-        doc_name = url.split('/')[-1]
-        with tempfile.NamedTemporaryFile() as fp:
+        local_copy = url.replace("https://hps.vi4io.org/_", "../../data/x")
+        if os.path.isfile(local_copy):
+          print ("using local copy")
+          file_name = local_copy
+        else:
+          doc_name = url.split('/')[-1]
+          if os.path.isfile(doc_name):
+            print("using cached value")
+          else:
+            pdf = urlopen(url).read()
+            fp = open(doc_name, "bw")
             fp.write(pdf)
-            filetype = subprocess.run(["file","-i",fp.name], stdout=subprocess.PIPE).stdout.decode('utf-8')
-            if "pdf" not in filetype:
-                print("Not pdf",filetype.split(":",1)[1],end='')
-                continue
-            result = subprocess.run(["pdftotext",fp.name,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
+            fp.close()
+          file_name = doc_name
+        print(file_name)
+        filetype = subprocess.run(["file","-i",file_name], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        if "pdf" not in filetype:
+            print("Not pdf",filetype.split(":",1)[1],end='')
+            continue
+        result = subprocess.run(["pdftotext",file_name,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
         words = word_tokenize(result)
         words = [word.lower() for word in words if word.isalpha()]#strip garbage
@@ -131,4 +143,3 @@ with open("freq_data.csv","w",encoding='utf-8') as f:
             break
 
 #print(pdf)
-
