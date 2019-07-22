@@ -53,14 +53,23 @@ class PDFFinder(HTMLParser):
                 self.elements.append(contents)
 
     def feed(self, data):
+        data = "".join(data.splitlines())
         self.data = data
         super().feed(data)
         return self.elements
 
 
+html = ""
+with urlopen(url) as responce:
+    for line in responce:
+        html += (line.decode("utf-8"))
+publications = PDFFinder().feed(html)
 
-sourcepage = urlopen(url).read()
-publications = PDFFinder().feed(str(sourcepage))
+print("Writing papers.csv")
+with open("papers.csv","w",encoding='utf-8') as f:
+    c = csv.writer(f,quoting=csv.QUOTE_NONNUMERIC)
+    for idx,url,html in publications:
+        c.writerow([idx,html])
 
 term_frequency = defaultdict(int)
 pdf_association = defaultdict(dict)
@@ -97,21 +106,16 @@ for idx,url,html in publications:
     except HTTPError as err:
         print("Error",err.code)
 
-print("Writing papers.csv")
-with open("papers.csv","w") as f:
-    c = csv.writer(f,quoting=csv.QUOTE_NONNUMERIC)
-    for idx,url,html in publications:
-        c.writerow([idx,html])
 
 print("Writing freq_data.csv")
-with open("freq_data.csv","w") as f:
+with open("freq_data.csv","w",encoding='utf-8') as f:
     s = sorted(term_frequency.items(), key=lambda kv: kv[1])[-150:]
     c = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
     for word,count in reversed(s):
         associated = pdf_association[word]
         if len(associated) > 20:
             associated = sorted(associated.items(), key=lambda kv:kv[1])
-            associated = associated[-20:]
+            associated = associated[-20::-1]
             associated = {k:v for k,v in associated}
         c.writerow((word,count,associated))#json.dumps(associated)))#using json for parsing in javascript
         if count <= 2:
