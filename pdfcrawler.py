@@ -3,12 +3,14 @@ from urllib.error import HTTPError
 from html.parser import HTMLParser
 from collections import defaultdict
 from os import path
+import json
 import subprocess
 import csv
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
+from pdffinder import PDFFinder
 
 
 nltk.download('averaged_perceptron_tagger',quiet=True)
@@ -19,49 +21,16 @@ nltk.download('punkt',quiet=True)
 
 pdf_stopwords = set(stopwords.words('english'))
 pdf_stopwords.update(stopwords.words('german'))
+pdf_stopwords.update(['slide'])#add additional stop words here
+
+max_count = 500 #Only keep track of top 500 words
+
 url = "https://hps.vi4io.org/research/publications?csvlist"
 base_url = 'https://hps.vi4io.org'
 
-class LinkParser(HTMLParser):
-    def handle_starttag(self,tag,attr):
-        self.link = attr[0][1]
-        if self.link[0] == '/' :
-            self.link = base_url + self.link
-
-class PDFFinder(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.recording = 0
-        self.elements = []
-
-    def handle_starttag(self,tag,attr):
-        if tag == "div":
-            if attr and attr[0][1] == 'li':
-                self.recording = 1
-                self.pos = self.getpos()[1]
-            elif self.recording > 0:
-                self.recording +=1
-
-    def handle_endtag(self,tag):
-        if tag == "div" and self.recording > 0:
-            self.recording -=1
-            if self.recording == 0:
-                self.end_pos = self.getpos()[1]
-                contents = self.data[self.pos:self.end_pos].replace("<div class=\"li\">","",1).lstrip()
-                contents = contents.split(",",2)
-                contents[0] = int(contents[0])
-                if contents[1]:
-                    linkParser = LinkParser()
-                    linkParser.feed(contents[1])
-                    contents[1] = linkParser.link
-
-                self.elements.append(contents)
-
-    def feed(self, data):
-        data = "".join(data.splitlines())
-        self.data = data
-        super().feed(data)
-        return self.elements
+term_frequency = defaultdict(int)
+pdf_association = defaultdict(dict)
+stemmer = WordNetLemmatizer()
 
 def download(url, file_path):
     try:
@@ -74,17 +43,19 @@ def download(url, file_path):
 
 with urlopen(url) as responce:
     html = responce.read().decode('utf-8')
-publications = PDFFinder().feed(html)
+publications = PDFFinder(base_url).feed(html)
 
 print("Writing papers.csv")
 with open("papers.csv","w",encoding='utf-8') as f:
     c = csv.writer(f,quoting=csv.QUOTE_NONNUMERIC)
+    lastidx = 0
     for idx,url,html in publications:
+        while lastidx+1 != idx:
+            lastidx+=1
+            c.writerow([lastidx,None])
         c.writerow([idx,html])
+        lastidx+=1
 
-term_frequency = defaultdict(int)
-pdf_association = defaultdict(dict)
-stemmer = WordNetLemmatizer()
 
 for idx,url,html in publications:
     print(idx, url)
@@ -92,7 +63,7 @@ for idx,url,html in publications:
         print("Empty")
         continue
 
-    file_path = url.replace("https://hps.vi4io.org/_", "../../data/x")
+    file_path = url.replace("https://hps.vi4io.org/_", "../../data/")
     if path.isfile(file_path):
         print("Using local copy")
     else:
@@ -117,9 +88,9 @@ for idx,url,html in publications:
     t_freq = defaultdict(int)
     tagged = nltk.pos_tag(words)
     for word,tag in tagged:
-        if tag == 'NNS':
+        if tag == 'NNS': #If plural , make singular
             word = stemmer.lemmatize(word)
-        if tag[:2] == 'NN' and len(word) > 1 and word not in pdf_stopwords:
+        if tag[:2] == 'NN' and len(word) > 1 and word not in pdf_stopwords: # word is noun and not stop word
             t_freq[word] += 1
     for word,count in t_freq.items():
         term_frequency[word]+=count
@@ -128,19 +99,26 @@ for idx,url,html in publications:
     print("Done")
 
 
+ordered = list(sorted(term_frequency.items(), key=lambda kv: kv[1], reverse=True))
+if len(ordered) > max_count:
+    ordered = ordered[:max_count]
 
 print("Writing freq_data.csv")
 with open("freq_data.csv","w",encoding='utf-8') as f:
-    s = sorted(term_frequency.items(), key=lambda kv: kv[1],reverse=True)
+    c = csv.writer(f, quoting=csv.QUOTE_NONE)
+    for row in ordered:
+        c.writerow(row)
+
+print("Writing related_papers.csv")
+with open("related_papers.csv","w",encoding='utf-8') as f:
     c = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-    for word,count in s:
+    for word,count in ordered:
         associated = pdf_association[word]
         if len(associated) > 20:
-            associated = sorted(associated.items(), key=lambda kv:kv[1],reverse=True)
+            associated = sorted(associated.items(), key=lambda kv:kv[1], reverse=True)
             associated = associated[:20]
-            associated = {k:v for k,v in associated}
-        c.writerow((word,count,associated))
-        if count <= 250:
-            break
+            associated = {k:v for k,v in associated}#format as dictionary
+        c.writerow((word,json.dumps(associated)))
+
 
 #print(pdf)
