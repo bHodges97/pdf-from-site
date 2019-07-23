@@ -65,7 +65,7 @@ class PDFFinder(HTMLParser):
         super().feed(data)
         return self.elements
 
-def download(file_path):
+def download(url, file_path):
     try:
         pdf = urlopen(url).read()
         with open(file_path, "bw") as fp:
@@ -103,14 +103,14 @@ for idx,url,html in publications:
             print("Using cached value")
         else:
             print("Downloading pdf")
-            status = download(file_path)
+            status = download(url, file_path)
             if status != 200:
                 print("Error", status)
                 continue
 
-    filetype = subprocess.run(["file","-i",file_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+    filetype = subprocess.run(["file","-i",file_path], stdout=subprocess.PIPE).stdout.decode('utf-8').split(":",1)[1]
     if "pdf" not in filetype:
-        print("Not pdf",filetype.split(":",1)[1],end='')
+        print("Not pdf",filetype,end='')
         continue
     result = subprocess.run(["pdftotext",file_path,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
