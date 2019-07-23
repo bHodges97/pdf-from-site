@@ -3,11 +3,9 @@ from urllib.error import HTTPError
 from html.parser import HTMLParser
 from collections import defaultdict
 from os import path
-import tempfile
 import subprocess
 import csv
 import nltk
-import json
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
@@ -133,7 +131,7 @@ for idx,url,html in publications:
 
 print("Writing freq_data.csv")
 with open("freq_data.csv","w",encoding='utf-8') as f:
-    s = sorted(term_frequency.items(), key=lambda kv: kv[1],reverse=True)#[:200]
+    s = sorted(term_frequency.items(), key=lambda kv: kv[1],reverse=True)
     c = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
     for word,count in s:
         associated = pdf_association[word]
@@ -141,7 +139,7 @@ with open("freq_data.csv","w",encoding='utf-8') as f:
             associated = sorted(associated.items(), key=lambda kv:kv[1],reverse=True)
             associated = associated[:20]
             associated = {k:v for k,v in associated}
-        c.writerow((word,count,associated))#json.dumps(associated)))#using json for parsing in javascript
+        c.writerow((word,count,associated))
         if count <= 250:
             break
 
