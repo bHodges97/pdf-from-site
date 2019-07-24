@@ -2,13 +2,13 @@
 
 Grabs all pdf files from a url and collections word frequencies.
 
-Outputs to freq_data.csv , papers.csv
+Outputs to freq_data.csv , papers.csv, related_papers.csv
 
 Usage:
 ```
 from pdfcrawler import PDFFreq
 url = "https://hps.vi4io.org/research/publications?csvlist"
-pdfurl,html = ""
+pdfurl,html = "",""
 pdfFreq =  PDFFreq(["words", "to", "be", "excluded"]) 
 pdfFreq.load_csv() #if csv exists load them
 pdfFreq.crawl_html(url) #add pdfs from a page
