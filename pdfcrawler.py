@@ -32,7 +32,7 @@ class PDFFreq():
         self.stemmer = WordNetLemmatizer()
         self.pdfs = []
         self.hashes = set()
-        self._nextid = 0
+        self._nextid = 1
 
 
     def crawl_html(self, url):
@@ -118,7 +118,7 @@ class PDFFreq():
             with open("freq_data.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
                 for word,count in reader:
-                    self.term_frequency[word] = count
+                    self.term_frequency[word] = int(count)
 
             with open("related_papers.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
@@ -128,9 +128,10 @@ class PDFFreq():
 
             with open("papers.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
-                for row in reader:
-                    self.pdfs.append(row)
-                    self.hashes.add(row[2])
+                for idx,html,phash in reader:
+                    idx = int(idx)
+                    self.pdfs.append([idx,html,phash])
+                    self.hashes.add(idx)
                 self._nextid = self.pdfs[-1][0] + 1
         except FileNotFoundError:
             print("Load failed")
@@ -152,10 +153,10 @@ class PDFFreq():
             c = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
             for word,count in ordered:
                 associated = self.pdf_association[word]
+                associated = sorted(associated.items(), key=lambda kv:kv[1], reverse=True)
                 if len(associated) > 20:
-                    associated = sorted(associated.items(), key=lambda kv:kv[1], reverse=True)
                     associated = associated[:20]
-                    associated = {k:v for k,v in associated}#format as dictionary
+                associated = {k:v for k,v in associated}#format as dictionary
                 c.writerow((word,json.dumps(associated)))
 
         print("Writing papers.csv")
