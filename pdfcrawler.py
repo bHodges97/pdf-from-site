@@ -63,8 +63,8 @@ class PDFFreq():
         return file_path
 
     def add_pdf(self, url, html):
+        print("Adding:", url)
         file_path = PDFFreq.download(url)
-        print("Adding:",file_path)
         if file_path == "":
             print("Does not exist")
             return
@@ -77,7 +77,7 @@ class PDFFreq():
 
         #hash
         with open(file_path, 'rb') as f:
-            phash = sha256(f.read()).digest()
+            phash = sha256(f.read()).hexdigest()
             if phash in self.hashes:
                 c = self.get_conflict(phash)
                 print("File hash collision,",c," skipping")
@@ -131,10 +131,12 @@ class PDFFreq():
                 for idx,html,phash in reader:
                     idx = int(idx)
                     self.pdfs.append([idx,html,phash])
-                    self.hashes.add(idx)
+                    self.hashes.add(phash)
                 self._nextid = self.pdfs[-1][0] + 1
         except FileNotFoundError:
             print("Load failed")
+            return
+        print("Load success")
 
 
     def save_csv(self, max_count = 1000):
