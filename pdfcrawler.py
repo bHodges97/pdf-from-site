@@ -123,12 +123,16 @@ class PDFFreq():
         return t_freq
 
     def bigram_freq(self,words):
-        bigrams = list(nltk_bigrams(words))
+        bigrams = [(x.lower(),y.lower()) for (x,y) in nltk_bigrams(words)]
         bigram_freq = defaultdict(int)
         filtered_bigrams = []
         for bigram in bigrams:
             if all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha() for x in bigram):
-                bigram_str =  " ".join(bigram)
+                w1,w2=bigram
+                tagged = nltk.pos_tag(bigram)
+                if tagged[1][1] == 'NNS':
+                    w2 = self.stemmer.lemmatize(w2)
+                bigram_str =  w1+" "+w2
                 bigram_freq[bigram_str]+=1
         return bigram_freq
 
@@ -194,7 +198,8 @@ class PDFFreq():
 
 if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
-    pdfFreq =  PDFFreq([],find_termfreq=True,find_collocations=True)
+    words = ["et","al","example","kunkel","see","figure","limitless","per"]
+    pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
     pdfFreq.load_csv()
     pdfFreq.crawl_html(url)
     pdfFreq.save_csv()
