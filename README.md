@@ -2,7 +2,11 @@
 
 Grabs all pdf files from a url and collections word frequencies.
 
-Outputs to freq_data.csv , papers.csv, related_papers.csv
+Outputs:
+
+freq_data.csv: word, freq 
+papers.csv: id, HTML, sha256 hash
+related_papers.csv: word, json id:key dict  
 
 Usage:
 ```

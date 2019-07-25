@@ -5,6 +5,7 @@ from html.parser import HTMLParser
 from collections import defaultdict
 from os import path
 from hashlib import sha256
+from nltk.util import bigrams
 import json
 import subprocess
 import csv
@@ -14,18 +15,22 @@ from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
 from pdffinder import PDFFinder
 
-
-nltk.download('averaged_perceptron_tagger',quiet=True)
-nltk.download('wordnet',quiet=True)
-nltk.download('stopwords',quiet=True)
-nltk.download('punkt',quiet=True)
+try:
+    nltk.data.find('tokenizers/punkt.zip')
+except LookupError:
+    print("Downloading resources")
+    nltk.download('averaged_perceptron_tagger',quiet=True)
+    nltk.download('wordnet',quiet=True)
+    nltk.download('stopwords',quiet=True)
+    nltk.download('punkt',quiet=True)
 
 
 class PDFFreq():
-    def __init__(self, exclude = []):
+    def __init__(self, exclude = [], collocations = False):
         self.pdf_stopwords = set(stopwords.words('english'))
         self.pdf_stopwords.update(stopwords.words('german'))
         self.pdf_stopwords.update(exclude)#add additional stop words here
+        self.collocations = collocations
 
         self.term_frequency = defaultdict(int)
         self.pdf_association = defaultdict(dict)
@@ -44,6 +49,7 @@ class PDFFreq():
 
         for idx,url,html in files:
             self.add_pdf(url,html)
+            return
 
     def download(url):
         if url == "":
@@ -84,9 +90,27 @@ class PDFFreq():
                 return
 
         #pdf to t_freq
-        t_freq = defaultdict(int)
         result = subprocess.run(["pdftotext",file_path,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
         words = word_tokenize(result)
+        term_freq = self.word_freq(words)
+
+        if self.collocations:
+            bigram_freq = self.word_freq(words)
+            print(len(bigram_freq), max(bigram_freq,key = lambda x:bigram_freq[x]))
+            term_freq = {**term_freq, **bigram_freq}
+
+        #save
+        idx = self._nextid
+        self._nextid+=1
+        self.hashes.add(phash)
+        self.pdfs.append([idx,html,phash])
+        for word,count in term_freq.items():
+            self.term_frequency[word]+=count
+            self.pdf_association[word][idx] = count
+        print("Success")
+
+    def word_freq(self,words):
+        t_freq = defaultdict(int)
         words = [word.lower() for word in words if word.isalpha()]#strip garbage
         tagged = nltk.pos_tag(words)
         for word,tag in tagged:
@@ -94,17 +118,19 @@ class PDFFreq():
                 word = self.stemmer.lemmatize(word)
             if tag[:2] == 'NN' and len(word) > 1 and word not in self.pdf_stopwords: # word is noun and not stop word
                 t_freq[word] += 1
+        return t_freq
 
-        #save
-        idx = self._nextid
-        self._nextid+=1
-        self.hashes.add(phash)
-        self.pdfs.append([idx,html,phash])
-        for word,count in t_freq.items():
-            self.term_frequency[word]+=count
-            self.pdf_association[word][idx] = count
-        del t_freq
-        print("Success")
+    def bigram_freq(self,words):
+        bigrams = list(bigrams(words))
+        bigram_freq = defaultdict()
+        filtered_bigrams = []
+        for bigram in bigrams:
+            if all(x not in self.pdf_stopwords and not x.isalpha for x in bigram):
+                bigram_str =  " ".join(bigram)
+                print(bigram_str)
+                bigram_freq[bigram_str]+=1
+        return bigram_freq
+
 
     def start(self):
         for idx,url,html in publications:
@@ -175,7 +201,7 @@ class PDFFreq():
 
 if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
-    pdfFreq =  PDFFreq([])
+    pdfFreq =  PDFFreq([],collocations=True)
     pdfFreq.load_csv()
     pdfFreq.crawl_html(url)
     pdfFreq.save_csv()
