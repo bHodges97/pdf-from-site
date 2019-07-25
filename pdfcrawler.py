@@ -26,11 +26,12 @@ except LookupError:
 
 
 class PDFFreq():
-    def __init__(self, exclude = [], collocations = False):
+    def __init__(self, exclude = [], find_termfreq = True, find_collocations = False):
         self.pdf_stopwords = set(stopwords.words('english'))
         self.pdf_stopwords.update(stopwords.words('german'))
         self.pdf_stopwords.update(exclude)#add additional stop words here
-        self.collocations = collocations
+        self.find_collocations = find_collocations
+        self.find_termfreq = find_termfreq
 
         self.term_frequency = defaultdict(int)
         self.pdf_association = defaultdict(dict)
@@ -91,9 +92,12 @@ class PDFFreq():
         #pdf to t_freq
         result = subprocess.run(["pdftotext",file_path,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
         words = word_tokenize(result)
-        term_freq = self.word_freq(words)
+        term_freq = defaultdict(int)
 
-        if self.collocations:
+        if self.find_termfreq:
+            term_freq = self.word_freq(words)
+
+        if self.find_collocations:
             bigram_freq = self.bigram_freq(words)
             term_freq = {**term_freq, **bigram_freq}
 
@@ -127,13 +131,6 @@ class PDFFreq():
                 bigram_str =  " ".join(bigram)
                 bigram_freq[bigram_str]+=1
         return bigram_freq
-
-    def start(self):
-        for idx,url,html in publications:
-            print(idx, url)
-            if len(url) < 1:
-                print("Empty")
-                continue
 
     def load_csv(self):
         try:
@@ -197,7 +194,7 @@ class PDFFreq():
 
 if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
-    pdfFreq =  PDFFreq([],collocations=True)
+    pdfFreq =  PDFFreq([],find_termfreq=True,find_collocations=True)
     pdfFreq.load_csv()
     pdfFreq.crawl_html(url)
     pdfFreq.save_csv()
