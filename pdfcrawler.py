@@ -16,7 +16,7 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from pdffinder import PDFFinder
 
 try:
-    nltk.data.find('tokenizers/punktp')
+    nltk.data.find('tokenizers/punkt')
 except LookupError:
     print("Downloading resources")
     nltk.download('averaged_perceptron_tagger',quiet=True)
@@ -123,7 +123,7 @@ class PDFFreq():
         bigram_freq = defaultdict(int)
         filtered_bigrams = []
         for bigram in bigrams:
-            if all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha for x in bigram):
+            if all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha() for x in bigram):
                 bigram_str =  " ".join(bigram)
                 bigram_freq[bigram_str]+=1
         return bigram_freq
