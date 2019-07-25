@@ -5,7 +5,7 @@ from html.parser import HTMLParser
 from collections import defaultdict
 from os import path
 from hashlib import sha256
-from nltk.util import bigrams
+from nltk.util import bigrams as nltk_bigrams
 import json
 import subprocess
 import csv
@@ -16,7 +16,7 @@ from nltk.stem.wordnet import WordNetLemmatizer
 from pdffinder import PDFFinder
 
 try:
-    nltk.data.find('tokenizers/punkt.zip')
+    nltk.data.find('tokenizers/punktp')
 except LookupError:
     print("Downloading resources")
     nltk.download('averaged_perceptron_tagger',quiet=True)
@@ -49,7 +49,6 @@ class PDFFreq():
 
         for idx,url,html in files:
             self.add_pdf(url,html)
-            return
 
     def download(url):
         if url == "":
@@ -95,8 +94,7 @@ class PDFFreq():
         term_freq = self.word_freq(words)
 
         if self.collocations:
-            bigram_freq = self.word_freq(words)
-            print(len(bigram_freq), max(bigram_freq,key = lambda x:bigram_freq[x]))
+            bigram_freq = self.bigram_freq(words)
             term_freq = {**term_freq, **bigram_freq}
 
         #save
@@ -121,16 +119,14 @@ class PDFFreq():
         return t_freq
 
     def bigram_freq(self,words):
-        bigrams = list(bigrams(words))
-        bigram_freq = defaultdict()
+        bigrams = list(nltk_bigrams(words))
+        bigram_freq = defaultdict(int)
         filtered_bigrams = []
         for bigram in bigrams:
-            if all(x not in self.pdf_stopwords and not x.isalpha for x in bigram):
+            if all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha for x in bigram):
                 bigram_str =  " ".join(bigram)
-                print(bigram_str)
                 bigram_freq[bigram_str]+=1
         return bigram_freq
-
 
     def start(self):
         for idx,url,html in publications:
