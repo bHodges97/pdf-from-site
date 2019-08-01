@@ -192,7 +192,7 @@ class PDFFreq():
     def load_csv(self):
         try:
             self.vocab = np.load("vocab.npy",allow_pickle=True).item()
-            self._nextvocab = max(self.vocab.values()) + 1
+            self._nextvocab = ax(self.vocab.values()) + 1
 
             X = sp.load_npz("tfs.npz")
             self.j_indices = X.indices.tolist()
@@ -212,8 +212,8 @@ class PDFFreq():
         print("Load success")
 
 
-    def save_csv(self, max_count = 1000,minfreq=2):
-        X = self.count_vectorize()
+    def save_csv(self, max_count = 10000,minfreq=2):
+        X = self.count_vectorize(limit=max_count,low=minfreq)
         inv_map= {v: k for k,v in self.vocab.items()}
 
         print("Writing numpy array")
