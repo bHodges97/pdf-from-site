@@ -1,18 +1,20 @@
 from urllib.request import urlopen
 from urllib.error import HTTPError
 from urllib.parse import urlparse
-from html.parser import HTMLParser
-from collections import defaultdict
+from collections import Counter
 from os import path
 from hashlib import sha256
+from operator import itemgetter
 from nltk.util import bigrams as nltk_bigrams
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
 import json
 import subprocess
 import csv
 import nltk
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.stem.wordnet import WordNetLemmatizer
+import numpy as np
+import scipy.sparse as sp
 from pdffinder import PDFFinder
 
 try:
@@ -33,23 +35,69 @@ class PDFFreq():
         self.find_collocations = find_collocations
         self.find_termfreq = find_termfreq
 
-        self.term_frequency = defaultdict(int)
-        self.pdf_association = defaultdict(dict)
+        self.vocab = dict()
         self.stemmer = WordNetLemmatizer()
         self.pdfs = []
         self.hashes = set()
-        self._nextid = 1
+        self._nextid = 0
+        self._nextvocab = 0
 
+        #Count vector
+        self.j_indices = []
+        self.indptr = [0]
+        self.values = []
+
+    def add_word(self, word):
+        if word not in self.vocab:
+            self.vocab[word] = self._nextvocab
+            self._nextvocab+=1
+        return self.vocab[word]
+
+
+    def count_vectorize(self,low=2,limit=10000):
+        """
+        Adapted from sklearn's count_vectorizer
+        https://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.CountVectorizer.html#
+        """
+        #construct sparse matrix
+        j_indices = np.asarray(self.j_indices, dtype=np.int_)
+        indptr = np.asarray(self.indptr, dtype=np.int_)
+        values = np.asarray(self.values, dtype=np.int_)
+        X = sp.csr_matrix((values, j_indices, indptr),
+                          shape=(len(indptr) - 1, len(self.vocab)),
+                          dtype=np.int_)
+        X.sort_indices()
+        #calc docucment and term frequencies
+        dfs = np.bincount(X.indices, minlength=X.shape[1])#TODO: Considering replacing min count with tfs and skip calculating dfs
+        tfs = np.asarray(X.sum(axis=0)).ravel()
+
+        #mask elements
+        mask = np.ones(len(tfs), dtype=bool)
+        mask &= dfs >= low
+        if mask.sum() > limit:
+            mask_inds = (-tfs[mask]).argsort()[:limit]
+            new_mask = np.zeros(len(tfs), dtype=bool)
+            new_mask[np.where(mask)[0][mask_inds]] = True
+            mask = new_mask
+
+        new_indices = np.cumsum(mask) - 1  # maps old indices to new
+        for term, old_index in list(self.vocab.items()):
+            if mask[old_index]:
+                self.vocab[term] = new_indices[old_index]
+            else:
+                del self.vocab[term]
+        kept_indices = np.where(mask)[0]
+        self.X = X[:, kept_indices]
+        self.tfs = tfs[kept_indices]
+        return self.X
 
     def crawl_html(self, url):
         with urlopen(url) as responce:
             html = responce.read().decode('utf-8')
         parsed_uri = urlparse(url)
         root = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri)
-        files = PDFFinder(root).feed(html)
+        return PDFFinder(root).feed(html)
 
-        for idx,url,html in files:
-            self.add_pdf(url,html)
 
     def download(url):
         if url == "":
@@ -87,44 +135,48 @@ class PDFFreq():
             if phash in self.hashes:
                 c = self.get_conflict(phash)
                 print("File hash collision,",c," skipping")
-                return
 
         #pdf to t_freq
         result = subprocess.run(["pdftotext",file_path,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
         words = word_tokenize(result)
-        term_freq = defaultdict(int)
+        term_freq = Counter()
 
         if self.find_termfreq:
             term_freq = self.word_freq(words)
 
         if self.find_collocations:
-            bigram_freq = self.bigram_freq(words)
-            term_freq = {**term_freq, **bigram_freq}
+            term_freq += self.bigram_freq(words)
 
         #save
         idx = self._nextid
         self._nextid+=1
         self.hashes.add(phash)
         self.pdfs.append([idx,html,phash])
-        for word,count in term_freq.items():
-            self.term_frequency[word]+=count
-            self.pdf_association[word][idx] = count
+
+        self.j_indices.extend(term_freq.keys())
+        self.values.extend(term_freq.values())
+        self.indptr.append(len(self.j_indices))
+        del term_freq
+
         print("Success")
 
     def word_freq(self,words):
-        t_freq = defaultdict(int)
-        words = [word.lower() for word in words if word.isalpha()]#strip garbage
+        t_freq = Counter()
+        #strip garbage
+        words = filter(lambda x:x.isalpha(), words)
+        words = map(lambda x:x.lower(), words)
         tagged = nltk.pos_tag(words)
         for word,tag in tagged:
             if tag == 'NNS': #If plural , make singular
                 word = self.stemmer.lemmatize(word)
             if tag[:2] == 'NN' and len(word) > 1 and word not in self.pdf_stopwords: # word is noun and not stop word
-                t_freq[word] += 1
+                idx = self.add_word(word)
+                t_freq[idx] += 1
         return t_freq
 
     def bigram_freq(self,words):
         bigrams = [(x.lower(),y.lower()) for (x,y) in nltk_bigrams(words)]
-        bigram_freq = defaultdict(int)
+        bigram_freq = Counter()
         filtered_bigrams = []
         for bigram in bigrams:
             if all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha() for x in bigram):
@@ -133,21 +185,19 @@ class PDFFreq():
                 if tagged[1][1] == 'NNS':
                     w2 = self.stemmer.lemmatize(w2)
                 bigram_str =  w1+" "+w2
-                bigram_freq[bigram_str]+=1
+                idx = self.add_word(bigram_str)
+                bigram_freq[idx]+=1
         return bigram_freq
 
     def load_csv(self):
         try:
-            with open("freq_data.csv","r",encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for word,count in reader:
-                    self.term_frequency[word] = int(count)
+            self.vocab = np.load("vocab.npy",allow_pickle=True).item()
+            self._nextvocab = max(self.vocab.values()) + 1
 
-            with open("related_papers.csv","r",encoding='utf-8') as f:
-                reader = csv.reader(f)
-                for word,related in reader:
-                    related = json.loads(related)
-                    self.pdf_association[word] = {int(k):v for k,v in related.items()}
+            X = sp.load_npz("tfs.npz")
+            self.j_indices = X.indices.tolist()
+            self.values = X.data.tolist()
+            self.indptr = X.indptr.tolist()
 
             with open("papers.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
@@ -162,33 +212,38 @@ class PDFFreq():
         print("Load success")
 
 
-    def save_csv(self, max_count = 1000):
-        ordered = list(sorted(self.term_frequency.items(), key=lambda kv: kv[1], reverse=True))
-        if len(ordered) > max_count:
-            ordered = ordered[:max_count]
+    def save_csv(self, max_count = 1000,minfreq=2):
+        X = self.count_vectorize()
+        inv_map= {v: k for k,v in self.vocab.items()}
+
+        print("Writing numpy array")
+        np.save('vocab.npy',self.vocab)
+        sp.save_npz('tfs.npz',self.X)
 
         print("Writing freq_data.csv")
         with open("freq_data.csv","w",encoding='utf-8') as f:
             c = csv.writer(f, quoting=csv.QUOTE_NONE)
-            for row in ordered:
-                c.writerow(row)
-
-        print("Writing related_papers.csv")
-        with open("related_papers.csv","w",encoding='utf-8') as f:
-            c = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
-            for word,count in ordered:
-                associated = self.pdf_association[word]
-                associated = sorted(associated.items(), key=lambda kv:kv[1], reverse=True)
-                if len(associated) > 20:
-                    associated = associated[:20]
-                associated = {k:v for k,v in associated}#format as dictionary
-                c.writerow((word,json.dumps(associated)))
+            for idx,count in enumerate(self.tfs):
+                c.writerow([inv_map[idx],count])
 
         print("Writing papers.csv")
         with open("papers.csv","w",encoding='utf-8') as f:
             c = csv.writer(f,quoting=csv.QUOTE_NONNUMERIC)
             for idx,html,phash in self.pdfs:
                 c.writerow([idx,html,phash])
+
+        print("Writing related_papers.csv")
+        with open("related_papers.csv","w",encoding='utf-8') as f:
+            c = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
+            for i in range(self.X.shape[1]):
+                r = self.X[:,i]
+                pairs = zip(r.nonzero()[0],r.data)
+                pairs = sorted(pairs,key=itemgetter(1), reverse=True)
+                if len(pairs) > 20:
+                    pairs=pairs[:20]
+                associated = {str(k):int(v) for k,v in pairs}
+                c.writerow((inv_map[i],json.dumps(associated)))
+
 
     def get_conflict(self, phash):
         for idx,_,h in self.pdfs:
@@ -201,7 +256,9 @@ if __name__ == "__main__":
     words = ["et","al","example","kunkel","see","figure","limitless","per"]
     pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
     pdfFreq.load_csv()
-    pdfFreq.crawl_html(url)
+    files = pdfFreq.crawl_html(url)
+    for idx,url,html in files:
+        pdfFreq.add_pdf(url,html)
     pdfFreq.save_csv()
 
 
