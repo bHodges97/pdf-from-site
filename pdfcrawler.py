@@ -2,13 +2,13 @@ from urllib.request import urlopen
 from urllib.error import HTTPError
 from urllib.parse import urlparse
 from collections import Counter
-from os import path
 from hashlib import sha256
 from operator import itemgetter
 from nltk.util import bigrams as nltk_bigrams
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem.wordnet import WordNetLemmatizer
+import os
 import json
 import subprocess
 import csv
@@ -99,14 +99,16 @@ class PDFFreq():
         return PDFFinder(root).feed(html)
 
 
-    def download(url):
+    def download(url,path="./downloads"):
         if url == "":
             return ""
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         file_path = url.replace("https://hps.vi4io.org/_", "../../data/")
-        if not path.isfile(file_path):
-            file_path = url.split('/')[-1]
-            if not path.isfile(file_path):
+        if not os.path.isfile(file_path):
+            file_path = path+"/"+url.split('/')[-1]
+            if not os.path.isfile(file_path):
                 try:
                     pdf = urlopen(url).read()
                     with open(file_path, "bw") as fp:
@@ -191,8 +193,8 @@ class PDFFreq():
 
     def load_csv(self):
         try:
-            self.vocab = np.load("vocab.npy",allow_pickle=True).item()
-            self._nextvocab = ax(self.vocab.values()) + 1
+            self.vocab = np.load("vocab.npz", allow_pickle=True)['arr_0'].item()
+            self._nextvocab = max(self.vocab.values()) + 1
 
             X = sp.load_npz("tfs.npz")
             self.j_indices = X.indices.tolist()
@@ -217,7 +219,7 @@ class PDFFreq():
         inv_map= {v: k for k,v in self.vocab.items()}
 
         print("Writing numpy array")
-        np.save('vocab.npy',self.vocab)
+        np.savez('vocab.npz',self.vocab)
         sp.save_npz('tfs.npz',self.X)
 
         print("Writing freq_data.csv")
