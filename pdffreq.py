@@ -12,7 +12,7 @@ import csv
 import nltk
 import numpy as np
 import scipy.sparse as sp
-from pdffinder import PDFFinder
+from csvfinder import CSVFinder
 
 try:
     nltk.data.find('tokenizers/punkt')
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     words = ["et","al","example","kunkel","see","figure","limitless","per"]
     pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
     pdfFreq.load_csv()
-    files = PDFFinder().crawl_html(url)
+    files = CSVFinder().crawl_html(url)
     for idx,url,html in files:
         pdfFreq.add_pdf(url,html)
     pdfFreq.save_csv()

@@ -1,9 +1,8 @@
-import http.cookiejar
 from urllib.error import HTTPError
 from urllib.parse import urlparse
-from requests.exceptions import TooManyRedirects
 import requests
 import cgi
+import os
 from pdffinder import PDFFinder
 
 def download(url, headers=None, jar=None, path="./downloads", redirects=0, redirect_limit=1):
@@ -15,6 +14,9 @@ def download(url, headers=None, jar=None, path="./downloads", redirects=0, redir
         headers = {'User-Agent':'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0'}
     if jar == None:
         jar = requests.cookies.RequestsCookieJar()
+    if not os.path.exists(path):
+        os.makedirs(path)
+
     try:
         res = requests.get(url, headers=headers, cookies=jar)
         content_type, encoding = filetype(res.headers['Content-Type'])
@@ -31,13 +33,16 @@ def download(url, headers=None, jar=None, path="./downloads", redirects=0, redir
             filename = url.rsplit('/',1)[-1]
         file_path = f"{path}/{filename}"
 
+        if os.path.isfile(file_path):
+            print("Exists:", file_path)
+            return file_path
         print("Downloading:",url)
         with open(file_path, "wb") as fp:
             fp.write(res.content)
         return file_path
     except HTTPError as err:
         print("Error", err.code)
-    except (ConnectionError, TooManyRedirects) as err:
+    except (ConnectionError, requests.Exceptions.TooManyRedirects) as err:
         print(err)
     return ""
 
