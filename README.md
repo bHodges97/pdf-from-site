@@ -1,23 +1,43 @@
 # PDF  Word Frequency
+Produced as part of an internship under [Julian Kunkel](https://hps.vi4io.org/about/people/julian_kunkel)
 
-Grabs all pdf files from a url and collections word frequencies.
+### pdffreq.py
+Converts a lists of files to a term frequency matrix.
 
-Outputs:
+**Outputs:**
 
-~~freq_data.csv: word, freq~~
-papers.csv: id, HTML, sha256 hash
-related_papers.csv: word, json id:key dict  
-vocab.npz: numpy npz, arr_0 is word:count dict
-tfs.npz: scipy sparse row matrix, shape (row,words)
+ - ~~**freq_data.csv**: word, freq~~
+ - **papers.csv**: id, HTML, sha256 hash
+ - **related_papers.csv**: word, json id:key dict  
+ - **vocab.npz**: numpy npz, arr_0 is word:count dict
+ - **tfs.npz**: scipy sparse row matrix, shape (row,words)
+
+### crawler.py
+Crawls google scholar for papers and download them.
+**Outputs:**
+  - **out.csv** bib entries for each paper
+
+### csvfinder.py
+Crawls pdfs from vi4io
+
+### classifier.py
+Use k-means to cluster documents
+
+### download.py
+Downloads from url. If url points to html page, then search for pdf links in page.
+
+
 
 Usage:
 ```
-from pdfcrawler import PDFFreq
-pdfFreq =  PDFFreq(["words", "to", "be", "excluded"])
-pdfFreq.load_csv() #if csv exists load them
+from pdffreq import PDFFreq
 url = "https://hps.vi4io.org/research/publications?csvlist"
-files = pdfFreq.crawl_html(url) #add pdfs from a page
-for _,url,html in files:
-  pdfFreq.add(url,html) #add a specific pdf
-pdfFreq.save_csv(max_count=10000)# save top max_count words to file
+words = ["et","al","example","kunkel","see","figure","limitless","per"]
+pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
+pdfFreq.load_csv()
+files = CSVFinder().crawl_html(url)
+for url,html in files:
+  pdfFreq.add_pdf(url,html)
+pdfFreq.save_csv(max_count=1000)
+
 ```

@@ -1,9 +1,13 @@
 import scholarly
 import csv
-from Download import download
+from download import download
 
 
 class Crawler():
+    """
+    Crawls google scholar for pdfs
+    Use download_all to download the pdfs
+    """
     def __init__(self):
         #pretend to be browser to avoid 403 error
         self.outfile = "out.csv"

@@ -25,6 +25,9 @@ except LookupError:
 
 
 class PDFFreq():
+    """
+    Converts list of (pdf,html) to a term frequency matrix
+    """
     def __init__(self, exclude = [], find_termfreq = True, find_collocations = False):
         self.pdf_stopwords = set(stopwords.words('english'))
         self.pdf_stopwords.update(stopwords.words('german'))

@@ -6,6 +6,10 @@ import os
 from pdffinder import PDFFinder
 
 def download(url, headers=None, jar=None, path="./downloads", redirects=0, redirect_limit=1):
+    """
+    Downloads pdf from url.
+    If url is html page, try to find a download link within.
+    """
     if os.path.exists(url):
         return url
     if url == "":
