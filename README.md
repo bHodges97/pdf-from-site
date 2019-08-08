@@ -28,7 +28,7 @@ Downloads from url. If url points to html page, then search for pdf links in pag
 
 
 
-Usage:
+## Usage:
 ```
 from pdffreq import PDFFreq
 url = "https://hps.vi4io.org/research/publications?csvlist"
