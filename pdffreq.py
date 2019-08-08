@@ -221,6 +221,10 @@ class PDFFreq():
             if phash == h:
                 return idx
 
+    def list_directory(self, path):
+        self.filenames = [(x,"") for x in list(os.walk(path))[0][2]]
+        return self.filenames
+
 
 if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
@@ -228,7 +232,7 @@ if __name__ == "__main__":
     pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
     pdfFreq.load_csv()
     files = CSVFinder().crawl_html(url)
-    for idx,url,html in files:
+    for url,html in files:
         pdfFreq.add_pdf(url,html)
     pdfFreq.save_csv()
 

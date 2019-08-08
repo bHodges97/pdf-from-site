@@ -67,6 +67,7 @@ def filetype(header):
     return ctype,encoding
 
 if __name__ == "__main__":
+    #test download
     url = "http://archiv.ub.uni-heidelberg.de/volltextserver/volltexte/2006/6330/pdf/PerformanceAnalysis.pdf"
     download(url)
 

@@ -80,7 +80,6 @@ class Classifier():
         for i in classes:
             print(i)
 
-
     def preprocess(path):
         text = Classifier.file_to_text(path)
         text = text.lower()
