@@ -6,6 +6,8 @@ import os
 from pdffinder import PDFFinder
 
 def download(url, headers=None, jar=None, path="./downloads", redirects=0, redirect_limit=1):
+    if os.path.exists(url):
+        return url
     if url == "":
         return ""
     if url[0] == '/':#likely a library link
@@ -42,7 +44,7 @@ def download(url, headers=None, jar=None, path="./downloads", redirects=0, redir
         return file_path
     except HTTPError as err:
         print("Error", err.code)
-    except (ConnectionError, requests.Exceptions.TooManyRedirects) as err:
+    except (ConnectionError, requests.exceptions.TooManyRedirects) as err:
         print(err)
     return ""
 
