@@ -1,6 +1,3 @@
-from urllib.request import urlopen
-from urllib.error import HTTPError
-from urllib.parse import urlparse
 from collections import Counter
 from hashlib import sha256
 from operator import itemgetter
@@ -53,7 +50,6 @@ class PDFFreq():
             self._nextvocab+=1
         return self.vocab[word]
 
-
     def count_vectorize(self,low=2,limit=10000):
         """
         Adapted from sklearn's count_vectorizer
@@ -91,79 +87,43 @@ class PDFFreq():
         self.tfs = tfs[kept_indices]
         return self.X
 
-    def crawl_html(self, url):
-        with urlopen(url) as responce:
-            html = responce.read().decode('utf-8')
-        parsed_uri = urlparse(url)
-        root = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri)
-        return PDFFinder(root).feed(html)
-
-
-    def download(url,path="./downloads"):
-        if url == "":
-            return ""
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        file_path = url.replace("https://hps.vi4io.org/_", "../../data/")
-        if not os.path.isfile(file_path):
-            file_path = path+"/"+url.split('/')[-1]
-            if not os.path.isfile(file_path):
-                try:
-                    pdf = urlopen(url).read()
-                    with open(file_path, "bw") as fp:
-                        fp.write(pdf)
-                except HTTPError as err:
-                    print("Error", err.code)
-                    return ""
-        return file_path
-
-    def add_pdf(self, url, html):
-        print("Adding:", url)
-        file_path = PDFFreq.download(url)
-        if file_path == "":
-            print("Does not exist")
-            return
-
-        #check if it is valid pdf
-        filetype = subprocess.run(["file","-i",file_path], stdout=subprocess.PIPE).stdout.decode('utf-8').split(":",1)[1]
-        if "pdf" not in filetype:
-            print("Not pdf",filetype,end='')
+    def add_pdf(self, file_path, html=""):
+        if os.path.isfile(file_path):
+            print("Adding:", file_path)
+        else:
+            print("Does not exist:", file_path)
             return
 
         #hash
         with open(file_path, 'rb') as f:
             phash = sha256(f.read()).hexdigest()
             if phash in self.hashes:
-                c = self.get_conflict(phash)
-                print("File hash collision,",c," skipping")
+                print("File hash collision,", self.get_conflict(phash), " skipping")
 
-        #pdf to t_freq
-        result = subprocess.run(["pdftotext",file_path,"-"], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        #to term freq
+        result = PDFFreq.file_to_text(file_path)
         words = word_tokenize(result)
-        term_freq = Counter()
+        counter = Counter()
 
         if self.find_termfreq:
-            term_freq = self.word_freq(words)
+            self.word_freq(words, counter)
 
         if self.find_collocations:
-            term_freq += self.bigram_freq(words)
+            self.bigram_freq(words, counter)
 
         #save
-        idx = self._nextid
+        self.pdfs.append([self._nextid,html,phash])
         self._nextid+=1
         self.hashes.add(phash)
-        self.pdfs.append([idx,html,phash])
 
-        self.j_indices.extend(term_freq.keys())
-        self.values.extend(term_freq.values())
+        #build tfs csr
+        self.j_indices.extend(counter.keys())
+        self.values.extend(counter.values())
         self.indptr.append(len(self.j_indices))
-        del term_freq
-
+        del counter
         print("Success")
 
-    def word_freq(self,words):
-        t_freq = Counter()
+    def word_freq(self, words, counter):
         #strip garbage
         words = filter(lambda x:x.isalpha(), words)
         words = map(lambda x:x.lower(), words)
@@ -173,12 +133,11 @@ class PDFFreq():
                 word = self.stemmer.lemmatize(word)
             if tag[:2] == 'NN' and len(word) > 1 and word not in self.pdf_stopwords: # word is noun and not stop word
                 idx = self.add_word(word)
-                t_freq[idx] += 1
-        return t_freq
+                counter[idx] += 1
+        return counter
 
-    def bigram_freq(self,words):
+    def bigram_freq(self, words, counter):
         bigrams = [(x.lower(),y.lower()) for (x,y) in nltk_bigrams(words)]
-        bigram_freq = Counter()
         filtered_bigrams = []
         for bigram in bigrams:
             if all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha() for x in bigram):
@@ -186,10 +145,10 @@ class PDFFreq():
                 tagged = nltk.pos_tag(bigram)
                 if tagged[1][1] == 'NNS':
                     w2 = self.stemmer.lemmatize(w2)
-                bigram_str =  w1+" "+w2
+                bigram_str =  f"{w1} {w2}"
                 idx = self.add_word(bigram_str)
-                bigram_freq[idx]+=1
-        return bigram_freq
+                counter[idx]+=1
+        return counter
 
     def load_csv(self):
         try:
@@ -212,7 +171,6 @@ class PDFFreq():
             print("Load failed")
             return
         print("Load success")
-
 
     def save_csv(self, max_count = 10000,minfreq=2):
         X = self.count_vectorize(limit=max_count,low=minfreq)
@@ -246,6 +204,17 @@ class PDFFreq():
                 associated = {str(k):int(v) for k,v in pairs}
                 c.writerow((inv_map[i],json.dumps(associated)))
 
+    def file_to_text(path):
+        filetype = subprocess.run(["file","-b",path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        if filetype.startswith("PDF"):
+            cmd = ["pdftotext",path,"-"]
+        elif filetype.startswith("HTML"):
+            cmd = ["html2text",path]
+        else:
+            cmd = ['string',path]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE).stdout
+        return result.decode('utf-8')
+
 
     def get_conflict(self, phash):
         for idx,_,h in self.pdfs:
@@ -258,7 +227,7 @@ if __name__ == "__main__":
     words = ["et","al","example","kunkel","see","figure","limitless","per"]
     pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
     pdfFreq.load_csv()
-    files = pdfFreq.crawl_html(url)
+    files = PDFFinder().crawl_html(url)
     for idx,url,html in files:
         pdfFreq.add_pdf(url,html)
     pdfFreq.save_csv()
