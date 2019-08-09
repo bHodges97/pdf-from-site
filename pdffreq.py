@@ -232,7 +232,7 @@ class PDFFreq():
 
 if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
-    words = ["et","al","example","kunkel","see","figure","limitless","per"]
+    words = ["et","al","example","kunkel","see","figure","limitless","per","google"," chapter", "section", "equation", "table"]
     pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
     pdfFreq.load_csv()
     files = CSVFinder().crawl_html(url)

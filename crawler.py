@@ -29,13 +29,12 @@ class Crawler():
                     break
 
     def download_all(self):
-        headers = {'User-Agent':'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0'}
         with open(self.outfile) as csvfile:
             reader = csv.DictReader(csvfile)
             for idx,row in enumerate(reader):
                 print(row['title'])
                 url = row['eprint']
-                download(url, headers = headers)
+                download(url)
 
 
 if __name__ == "__main__":
