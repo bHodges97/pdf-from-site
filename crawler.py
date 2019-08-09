@@ -34,7 +34,7 @@ class Crawler():
             for idx,row in enumerate(reader):
                 print(row['title'])
                 url = row['eprint']
-                download(url)
+                download(url,file_name=str(idx))
 
 
 if __name__ == "__main__":

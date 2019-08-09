@@ -5,7 +5,7 @@ import cgi
 import os
 from pdffinder import PDFFinder
 
-def download(url, path="./downloads", filename=None, headers=None, jar=None, redirects=0, redirect_limit=1):
+def download(url, path="./downloads", overwrite=False, filename=None, headers=None, jar=None, redirects=0, redirect_limit=1):
     """
     Downloads pdf from url.
     If url is html page, try to find a download link within.
@@ -31,7 +31,7 @@ def download(url, path="./downloads", filename=None, headers=None, jar=None, red
             res = requests.get(url, headers=headers, cookies=jar)
             html = res.content.decode(encoding)
             pdfurl = findpdflink(html, url)
-            return download(pdfurl, headers=headers, jar=jar, path=path, redirects=redirects+1, redirect_limit=redirect_limit)
+            return download(pdfurl, headers=headers, jar=jar, path=path, filename=filename, overwrite=overwrite, redirects=redirects+1, redirect_limit=redirect_limit)
         #guess a file type
         if filename == None:
             #get filename from request header
@@ -43,13 +43,18 @@ def download(url, path="./downloads", filename=None, headers=None, jar=None, red
                 filename = url.rsplit('/',1)[-1]
         file_path = f"{path}/{filename}"
 
-        #save to file_path
-        if os.path.isfile(file_path):
+        exists = os.path.isfile(file_path)
+        if exists and not overwrite:
             print("Exists:", file_path)
-        else:
-            print("Downling to:",file_path)
-            with open(file_path, "wb") as fp:
-                fp.write(res.content)
+            return file_path
+        res = requests.get(url, headers=headers, cookies=jar)
+        if exist:#give new name
+            while os.path.exists(f"{path}/{filename}({i})"):
+                i += 1
+            file_path = f"{path}/{filename}{(i)}"
+        print("Downloaled to:",file_path)
+        with open(file_path, "wb") as fp:
+            fp.write(res.content)
         return file_path
     except HTTPError as err:
         print("Error", err.code)
