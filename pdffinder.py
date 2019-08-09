@@ -39,7 +39,7 @@ class PDFFinder(HTMLParser):
 
 
     def pdflink(self):
-        words = ["epdf","supplement","google"]
+        words = ["epdf","supplement","google","kunkel", "figure"," chapter", "section", "equation", "table"]
         pdfs = [x for x in self.pdflist if all([y not in x.lower() for y in words])]
         pdfs = [x for x in pdfs if x[:2] != "//"]
 

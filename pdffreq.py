@@ -155,7 +155,8 @@ class PDFFreq():
 
     def load_csv(self):
         try:
-            self.vocab = np.load("vocab.npz", allow_pickle=True)['arr_0'].item()
+            inv_map = np.load("vocab.npz", allow_pickle=True)['arr_0'].item()
+            self.vocab = {v:k for k,v in inv_map.items()}
             self._nextvocab = max(self.vocab.values()) + 1
 
             X = sp.load_npz("tfs.npz")
@@ -180,7 +181,7 @@ class PDFFreq():
         inv_map= {v: k for k,v in self.vocab.items()}
 
         print("Writing numpy array")
-        np.savez('vocab.npz',self.vocab)
+        np.savez('vocab.npz',inv_map)
         sp.save_npz('tfs.npz',self.X)
 
         print("Writing freq_data.csv")

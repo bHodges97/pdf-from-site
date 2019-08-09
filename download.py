@@ -5,7 +5,7 @@ import cgi
 import os
 from pdffinder import PDFFinder
 
-def download(url, headers=None, jar=None, path="./downloads", redirects=0, redirect_limit=1):
+def download(url, path="./downloads", filename=None, headers=None, jar=None, redirects=0, redirect_limit=1):
     """
     Downloads pdf from url.
     If url is html page, try to find a download link within.
@@ -24,27 +24,32 @@ def download(url, headers=None, jar=None, path="./downloads", redirects=0, redir
         os.makedirs(path)
 
     try:
-        res = requests.get(url, headers=headers, cookies=jar)
+        res = requests.head(url, headers=headers, cookies=jar, allow_redirects=True)
         content_type, encoding = filetype(res.headers['Content-Type'])
+        #if link is html crawl page for pdf link
         if content_type == "html" and redirects < redirect_limit:
+            res = requests.get(url, headers=headers, cookies=jar)
             html = res.content.decode(encoding)
             pdfurl = findpdflink(html, url)
             return download(pdfurl, headers=headers, jar=jar, path=path, redirects=redirects+1, redirect_limit=redirect_limit)
-
-        #save to file
-        if 'Content-Disposition' in res.headers:
-            header = res.headers['Content-Disposition']
-            filename = cgi.parse_header(header)[1]['filename']
-        else:#html pages may not have a file name, so guess from url
-            filename = url.rsplit('/',1)[-1]
+        #guess a file type
+        if filename == None:
+            #get filename from request header
+            if 'Content-Disposition' in res.headers:
+                header = res.headers['Content-Disposition']
+                filename = cgi.parse_header(header)[1]['filename']
+            #if none avaliable take the url end
+            else:
+                filename = url.rsplit('/',1)[-1]
         file_path = f"{path}/{filename}"
 
+        #save to file_path
         if os.path.isfile(file_path):
             print("Exists:", file_path)
-            return file_path
-        print("Downloading:",url)
-        with open(file_path, "wb") as fp:
-            fp.write(res.content)
+        else:
+            print("Downling to:",file_path)
+            with open(file_path, "wb") as fp:
+                fp.write(res.content)
         return file_path
     except HTTPError as err:
         print("Error", err.code)
