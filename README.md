@@ -8,8 +8,8 @@ Converts a lists of files to a term frequency matrix.
 
  - ~~**freq_data.csv**: word, freq~~
  - **papers.csv**: id, HTML, sha256 hash
- - **related_papers.csv**: word, json id:key dict  
- - **vocab.npz**: numpy npz, arr_0 is word:count dict
+ - **related_papers.csv**: word, json id:key  
+ - **vocab.npz**: numpy npz, arr_0 is dict for word:id
  - **tfs.npz**: scipy sparse row matrix, shape (row,words)
 
 ### crawler.py
