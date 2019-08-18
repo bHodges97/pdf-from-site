@@ -13,6 +13,7 @@ import nltk
 import numpy as np
 import scipy.sparse as sp
 from csvfinder import CSVFinder
+from savenpz import save_npz,load_npz
 
 try:
     nltk.data.find('tokenizers/punkt')
@@ -153,16 +154,15 @@ class PDFFreq():
                 counter[idx]+=1
         return counter
 
-    def load_csv(self):
+    def load(self):
         try:
-            inv_map = np.load("vocab.npz", allow_pickle=True)['arr_0'].item()
-            self.vocab = {v:k for k,v in inv_map.items()}
-            self._nextvocab = max(self.vocab.values()) + 1
-
-            X = sp.load_npz("tfs.npz")
+            X,vocab = load_npz("tfs.npz")
             self.j_indices = X.indices.tolist()
             self.values = X.data.tolist()
             self.indptr = X.indptr.tolist()
+
+            self.vocab = {vocab:idx for idx,vocab in enumerate(vocab)}
+            self._nextvocab = len(vocab)
 
             with open("papers.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
@@ -176,19 +176,20 @@ class PDFFreq():
             return
         print("Load success")
 
-    def save_csv(self, max_count = 10000,minfreq=2):
+    def save(self, max_count = 10000,minfreq=2):
         X = self.count_vectorize(limit=max_count,low=minfreq)
-        inv_map= {v: k for k,v in self.vocab.items()}
+        imap = {v:k for k,v in self.vocab.items()}
+        vocab = [imap[i] for i in range(len(self.vocab))]
+        del imap
 
-        print("Writing numpy array")
-        np.savez('vocab.npz',inv_map)
-        sp.save_npz('tfs.npz',self.X)
+        print("Writing numpy matrix and vocab")
+        save_npz('tfs.npz', self.X, vocab)
 
         print("Writing freq_data.csv")
         with open("freq_data.csv","w",encoding='utf-8') as f:
             c = csv.writer(f, quoting=csv.QUOTE_NONE)
             for idx,count in enumerate(self.tfs):
-                c.writerow([inv_map[idx],count])
+                c.writerow([vocab[idx],count])
 
         print("Writing papers.csv")
         with open("papers.csv","w",encoding='utf-8') as f:
@@ -206,7 +207,7 @@ class PDFFreq():
                 if len(pairs) > 20:
                     pairs=pairs[:20]
                 associated = {str(k):int(v) for k,v in pairs}
-                c.writerow((inv_map[i],json.dumps(associated)))
+                c.writerow((vocab[i],json.dumps(associated)))
 
     def file_to_text(path):
         filetype = subprocess.run(["file","-b",path], stdout=subprocess.PIPE).stdout.decode('utf-8')
@@ -234,11 +235,11 @@ if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
     words = ["et","al","example","kunkel","see","figure","limitless","per","google"," chapter", "section", "equation", "table"]
     pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
-    pdfFreq.load_csv()
+    pdfFreq.load()
     files = CSVFinder().crawl_html(url)
     for url,html in files:
         pdfFreq.add_pdf(url,html)
-    pdfFreq.save_csv()
+    pdfFreq.save()
 
 
 
