@@ -6,11 +6,10 @@ Converts a lists of files to a term frequency matrix.
 
 **Outputs:**
 
- - ~~**freq_data.csv**: word, freq~~
+ - **freq_data.csv**: word, freq 
+ - **related_papers.csv**: word, json id:key 
  - **papers.csv**: id, HTML, sha256 hash
- - **related_papers.csv**: word, json id:key  
- - **vocab.npz**: numpy npz, arr_0 is dict for word:id
- - **tfs.npz**: scipy sparse row matrix, shape (row,words)
+ - **tfs.npz**: vocab list and scipy sparse row matrix, shape (row,words)
 
 ### crawler.py
 Crawls google scholar for papers and download them.
