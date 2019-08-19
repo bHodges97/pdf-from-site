@@ -157,12 +157,6 @@ class PDFFreq():
     def load(self):
         try:
             X,vocab = load_npz("tfs.npz")
-            self.j_indices = X.indices.tolist()
-            self.values = X.data.tolist()
-            self.indptr = X.indptr.tolist()
-
-            self.vocab = {vocab:idx for idx,vocab in enumerate(vocab)}
-            self._nextvocab = len(vocab)
 
             with open("papers.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
@@ -174,6 +168,15 @@ class PDFFreq():
         except FileNotFoundError:
             print("Load failed")
             return
+        else:
+            self.j_indices = X.indices.tolist()
+            self.values = X.data.tolist()
+            self.indptr = X.indptr.tolist()
+            self.vocab = {vocab:idx for idx,vocab in enumerate(vocab)}
+            self._nextvocab = len(vocab)
+
+
+
         print("Load success")
 
     def save(self, max_count = 10000,minfreq=2):
