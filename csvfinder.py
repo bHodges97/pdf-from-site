@@ -53,7 +53,7 @@ class CSVFinder(HTMLParser):
         self.base_url = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri)
         files = self.feed(res.content.decode("utf-8"))
         for f in files:
-            path = f[1].replace("https://hps.vi4io.org/_", "../../data/")
+            path = f[1].replace("https://hps.vi4io.org/_", "../data/")
             if not os.path.exists(path):
                 f[1] = download(f[1])
         files = [(f[1],f[2]) for f in files]

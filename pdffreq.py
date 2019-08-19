@@ -188,17 +188,20 @@ class PDFFreq():
         print("Writing numpy matrix and vocab")
         save_npz('tfs.npz', self.X, vocab)
 
+        print("Writing papers.csv")
+        with open("papers.csv","w",encoding='utf-8') as f:
+            c = csv.writer(f,quoting=csv.QUOTE_NONNUMERIC)
+            for idx,html,phash in self.pdfs:
+                c.writerow([idx,html,phash])
+
+        return
+        #not needed anymore
         print("Writing freq_data.csv")
         with open("freq_data.csv","w",encoding='utf-8') as f:
             c = csv.writer(f, quoting=csv.QUOTE_NONE)
             for idx,count in enumerate(self.tfs):
                 c.writerow([vocab[idx],count])
 
-        print("Writing papers.csv")
-        with open("papers.csv","w",encoding='utf-8') as f:
-            c = csv.writer(f,quoting=csv.QUOTE_NONNUMERIC)
-            for idx,html,phash in self.pdfs:
-                c.writerow([idx,html,phash])
 
         print("Writing related_papers.csv")
         with open("related_papers.csv","w",encoding='utf-8') as f:
