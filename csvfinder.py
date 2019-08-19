@@ -56,6 +56,8 @@ class CSVFinder(HTMLParser):
             path = f[1].replace("https://hps.vi4io.org/_", "../data/")
             if not os.path.exists(path):
                 f[1] = download(f[1])
+            else:
+                f[1] = path
         files = [(f[1],f[2]) for f in files]
         return files
 
