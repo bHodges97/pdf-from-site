@@ -187,7 +187,6 @@ class PDFFreq():
         del imap
 
         print("Writing numpy matrix and vocab")
-        print(X.shape)
         save_npz('tfs.npz', self.X, vocab)
 
         print("Writing papers.csv")
@@ -247,7 +246,6 @@ if __name__ == "__main__":
     files = CSVFinder().crawl_html(url)
     for url,html in files:
         pdfFreq.add_pdf(url,html)
-    print(len(files))
     pdfFreq.save()
 
 
