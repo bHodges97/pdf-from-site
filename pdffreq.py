@@ -103,6 +103,7 @@ class PDFFreq():
             phash = sha256(f.read()).hexdigest()
             if phash in self.hashes:
                 print("File hash collision,", self.get_conflict(phash), " skipping")
+                return
 
         #to term freq
         result = PDFFreq.file_to_text(file_path)
@@ -186,6 +187,7 @@ class PDFFreq():
         del imap
 
         print("Writing numpy matrix and vocab")
+        print(X.shape)
         save_npz('tfs.npz', self.X, vocab)
 
         print("Writing papers.csv")
@@ -245,6 +247,7 @@ if __name__ == "__main__":
     files = CSVFinder().crawl_html(url)
     for url,html in files:
         pdfFreq.add_pdf(url,html)
+    print(len(files))
     pdfFreq.save()
 
 
