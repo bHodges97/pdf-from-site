@@ -29,12 +29,14 @@ class PDFFreq():
     """
     Converts list of (pdf,html) to a term frequency matrix
     """
-    def __init__(self, exclude = [], find_termfreq = True, find_collocations = False):
+    def __init__(self, exclude = [], find_termfreq = True, find_collocations = False, fixed = []):
         self.pdf_stopwords = set(stopwords.words('english'))
         self.pdf_stopwords.update(stopwords.words('german'))
         self.pdf_stopwords.update(exclude)#add additional stop words here
+        self.pdf_stopwords = frozenset(self.pdf_stopwords)
         self.find_collocations = find_collocations
         self.find_termfreq = find_termfreq
+        self.fixed = frozenset(fixed)
 
         self.vocab = dict()
         self.stemmer = WordNetLemmatizer()
@@ -47,6 +49,9 @@ class PDFFreq():
         self.j_indices = []
         self.indptr = [0]
         self.values = []
+
+        for w in fixed:
+            self.add_word(w)
 
     def add_word(self, word):
         if word not in self.vocab:
@@ -79,6 +84,10 @@ class PDFFreq():
             new_mask = np.zeros(len(tfs), dtype=bool)
             new_mask[np.where(mask)[0][mask_inds]] = True
             mask = new_mask
+
+        for word in self.fixed:
+            if word in self.vocab:
+                mask[self.vocab[word]] = True
 
         new_indices = np.cumsum(mask) - 1  # maps old indices to new
         for term, old_index in list(self.vocab.items()):
@@ -134,6 +143,10 @@ class PDFFreq():
         words = map(lambda x:x.lower(), words)
         tagged = nltk.pos_tag(words)
         for word,tag in tagged:
+            if word in self.fixed:
+                idx = self.add_word(word)
+                counter[idx] += 1
+                continue
             if tag == 'NNS': #If plural , make singular
                 word = self.stemmer.lemmatize(word)
             if tag[:2] == 'NN' and len(word) > 1 and word not in self.pdf_stopwords: # word is noun and not stop word
@@ -145,19 +158,23 @@ class PDFFreq():
         bigrams = [(x.lower(),y.lower()) for (x,y) in nltk_bigrams(words)]
         filtered_bigrams = []
         for bigram in bigrams:
-            if all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha() for x in bigram):
-                w1,w2=bigram
+            w1,w2=bigram
+            bigram_str =  f"{w1} {w2}"
+            if bigram_str in self.fixed:
+                idx = self.add_word(bigram_str)
+                counter[idx] += 1
+            elif all(len(x) > 1 and x not in self.pdf_stopwords and x.isalpha() for x in bigram):
                 tagged = nltk.pos_tag(bigram)
                 if tagged[1][1] == 'NNS':
                     w2 = self.stemmer.lemmatize(w2)
-                bigram_str =  f"{w1} {w2}"
                 idx = self.add_word(bigram_str)
                 counter[idx]+=1
         return counter
 
     def load(self):
         try:
-            X,vocab = load_npz("tfs.npz")
+            X,vocab,fixed = load_npz("tfs.npz")
+            self.fixed = frozenset(set(fixed) | self.fixed)
 
             with open("papers.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
@@ -187,7 +204,7 @@ class PDFFreq():
         del imap
 
         print("Writing numpy matrix and vocab")
-        save_npz('tfs.npz', self.X, vocab)
+        save_npz('tfs.npz', self.X, vocab, self.fixed)
 
         print("Writing papers.csv")
         with open("papers.csv","w",encoding='utf-8') as f:
@@ -240,8 +257,9 @@ class PDFFreq():
 
 if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
-    words = ["et","al","example","kunkel","see","figure","limitless","per","google"," chapter", "section", "equation", "table"]
-    pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
+    stop_words = ["et","al","example","kunkel","see","figure","limitless","per","google"," chapter", "section", "equation", "table"]
+    fixed = ["kunkel", "nathanael"]#must be lowercase without numbers
+    pdfFreq = PDFFreq(stop_words,fixed=fixed,find_termfreq=False,find_collocations=True)
     pdfFreq.load()
     files = CSVFinder().crawl_html(url)
     for url,html in files:
