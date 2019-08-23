@@ -140,7 +140,7 @@ class PDFFreq():
     def word_freq(self, words, counter):
         #strip garbage
         words = filter(lambda x:x.isalpha(), words)
-        words = map(lambda x:x.lower(), words)
+        words = list(map(lambda x:x.lower(), words))
         tagged = nltk.pos_tag(words)
         for word,tag in tagged:
             if word in self.fixed:
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
     stop_words = ["et","al","example","kunkel","see","figure","limitless","per","google"," chapter", "section", "equation", "table"]
     fixed = ["kunkel", "nathanael"]#must be lowercase without numbers
-    pdfFreq = PDFFreq(stop_words,fixed=fixed,find_termfreq=False,find_collocations=True)
+    pdfFreq = PDFFreq(stop_words,fixed=fixed,find_termfreq=True,find_collocations=True)
     pdfFreq.load()
     files = CSVFinder().crawl_html(url)
     for url,html in files:
