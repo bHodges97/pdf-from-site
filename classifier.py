@@ -1,37 +1,14 @@
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer, strip_accents_unicode
+from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.cluster import KMeans,MiniBatchKMeans
 from sklearn.decomposition import TruncatedSVD
 from sklearn import metrics
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords as nltk_stopwords
-from time import time
-import os
-import subprocess
-import numpy as np
-import scipy.sparse as sp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from savenpz import save_npz,load_npz
 
 class Classifier():
     def __init__(self):
         self.tf = None
-        self.vocab = None
-
-    def count(self, path):
-        stopwords = frozenset(nltk_stopwords.words('english'))#very slow if not set
-        self.filenames = [x for x in list(os.walk(path))[0][2]]
-        files = [f'{path}/{x}' for x in filenames]
-        vectorizer = CountVectorizer(preprocessor=Classifier.preprocess,
-                analyzer="word",
-                tokenizer=Classifier.tokenizer,
-                stop_words=[],
-#               max_df=0.5,#ignore top 50%
-                min_df=2,
-                max_features=10000)
-        self.tf = vectorizer.fit_transform(files)
-        self.tfidf = self._tfidf_transform(self.tf)
-        self.vocab = vectorizer.vocabulary_
-        return self.tfidf
 
     def _tfidf_transform(self,tf):
         tfidfTransformer = TfidfTransformer()
@@ -39,21 +16,19 @@ class Classifier():
         return self.tfidf
 
     def load(self, path="."):
-        self.tf = sp.load_npz(f"{path}/tfs.npz")
-        self.vocab = np.load(f"{path}/vocab.npz", allow_pickle=True)["arr_0"].item()
-        self.tfidf = self._tfidf_transform(self.tf)
-        return self.tfidf
+        self.tf,_ = load_npz(f"{path}/tfs.npz")
+        return self.tf
 
     def save(self, path="."):
-        if self.tfidf == None or self.vocab == None:
+        if self.tf == None:
             print("No term frequencies loaded")
             return
-        sp.save_npz(f"{path}/tfs.npz",self.tfidf)
-        np.savez(f"{path}/vocab.npz",self.vocab)
+        save_npz(f'{path}/tfs.npz', self.tf, ["none"])
 
     def classify(self, tfidf=None, clusters=5, verbose=False, plot=False):
         if tfidf == None:
             tfidf = self.tfidf
+        self.tfidf = self._tfidf_transform(self.tf)
         self.clusters = clusters
         svd = TruncatedSVD(n_components=2)
         reduced = svd.fit_transform(tfidf)
@@ -79,29 +54,6 @@ class Classifier():
 
         for i in classes:
             print(i)
-
-    def preprocess(path):
-        text = Classifier.file_to_text(path)
-        text = text.lower()
-        text = strip_accents_unicode(text)
-        return text
-
-    def tokenizer(text):
-        tokens = word_tokenize(text)
-        tokens = filter(lambda x:x.isalpha(),tokens)
-        return tokens
-
-    def file_to_text(path):
-        filetype = subprocess.run(["file","-b",path], stdout=subprocess.PIPE).stdout.decode('utf-8')
-        if filetype.startswith("PDF"):
-            cmd = ["pdftotext",path,"-"]
-        elif filetype.startswith("HTML"):
-            cmd = ["html2text",path]
-        else:
-            cmd = ['cat']
-        result = subprocess.run(cmd, stdout=subprocess.PIPE).stdout
-        return result.decode('utf-8')
-
 
 
 if __name__ == "__main__":
