@@ -53,14 +53,14 @@ class Classifier():
         score = 0
         km = None
         for k in range(kmin, kmax+1):
-            print(k)
             kmeans = MiniBatchKMeans(n_clusters=k).fit(x)
-            print(kmeans.labels_)
-            newscore = silhouette_score(x, kmeans.labels_, metric = 'euclidean')
-            print(newscore)
-            if newscore > score:
-                score = newscore
-                km = kmeans
+            try:
+                newscore = silhouette_score(x, kmeans.labels_, metric = 'euclidean')
+                if newscore > score:
+                    score = newscore
+                    km = kmeans
+            except:
+                pass
         return km
 
     def wordcloud(self):#TODO

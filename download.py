@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 import requests
 import cgi
 import os
+import sys
 from pdffinder import PDFFinder
 
 def download(url, path="./downloads", save_copy=False, filename=None, headers=None, jar=None, redirects=0, redirect_limit=1):
@@ -25,11 +26,18 @@ def download(url, path="./downloads", save_copy=False, filename=None, headers=No
 
     try:
         res = requests.head(url, headers=headers, cookies=jar, allow_redirects=True)
-        content_type, encoding = filetype(res.headers['Content-Type'])
+        if 'Content-Type' in res.headers:
+            content_type, encoding = filetype(res.headers['Content-Type'])
+        else:
+            print("No content-type specified",res.headers.keys())
+            return ""
         #if link is html crawl page for pdf link
         if content_type == "html" and redirects < redirect_limit:
             res = requests.get(url, headers=headers, cookies=jar)
-            html = res.content.decode(encoding)
+            if not encoding:#assume ascii and strip non ascii bits
+                html =res.content.decode('ascii', 'ignore')
+            else:
+                html = res.content.decode(encoding, 'ignore')
             pdfurl = findpdflink(html, url)
             return download(pdfurl, headers=headers, jar=jar, path=path, filename=filename, save_copy=save_copy, redirects=redirects+1, redirect_limit=redirect_limit)
         #guess a file type
@@ -61,6 +69,9 @@ def download(url, path="./downloads", save_copy=False, filename=None, headers=No
         print("Error", err.code)
     except (ConnectionError, requests.exceptions.TooManyRedirects) as err:
         print(err)
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
+
     return ""
 
 def findpdflink(html, url):
@@ -71,7 +82,7 @@ def findpdflink(html, url):
         pass
     elif pdfurl[0] == "/":
         parsed_uri = urlparse(url)
-        pdfurl = '{uri.scheme}://{uri.netloc}/{pdfurl}'.format(uri=parsed_uri)
+        pdfurl = '{uri.scheme}://{uri.netloc}/{pdfurl}'.format(uri=parsed_uri,pdfurl=pdfurl)
     return pdfurl
 
 def filetype(header):

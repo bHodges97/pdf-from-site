@@ -234,15 +234,19 @@ class PDFFreq():
                 c.writerow((vocab[i],json.dumps(associated)))
 
     def file_to_text(path):
-        filetype = subprocess.run(["file","-b",path], stdout=subprocess.PIPE).stdout.decode('utf-8')
-        if filetype.startswith("PDF"):
-            cmd = ["pdftotext",path,"-"]
-        elif filetype.startswith("HTML"):
-            cmd = ["html2text",path]
-        else:
-            cmd = ['string',path]
-        result = subprocess.run(cmd, stdout=subprocess.PIPE).stdout
-        return result.decode('utf-8')
+        try:
+            filetype = subprocess.run(["file","-b",path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+            if filetype.startswith("PDF"):
+                cmd = ["pdftotext",path,"-"]
+            elif filetype.startswith("HTML"):
+                cmd = ["html2text",path]
+            else:
+                cmd = ['strings',path]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE).stdout
+            return result.decode('utf-8')
+        except:
+            print("Unable to extract text from this document.")
+            return ""
 
 
     def get_conflict(self, phash):
@@ -251,15 +255,14 @@ class PDFFreq():
                 return idx
 
     def list_directory(self, path):
-        self.filenames = [(x,"") for x in list(os.walk(path))[0][2]]
-        return self.filenames
+        return [os.path.join(path,x) for x in list(os.walk(path))[0][2]]
 
 
 if __name__ == "__main__":
     url = "https://hps.vi4io.org/research/publications?csvlist"
     stop_words = ["et","al","example","kunkel","see","figure","limitless","per","google"," chapter", "section", "equation", "table"]
     fixed = ["kunkel", "nathanael"]#must be lowercase without numbers
-    pdfFreq = PDFFreq(stop_words,fixed=fixed,find_termfreq=True,find_collocations=True)
+    pdfFreq = PDFFreq(exclude=stop_words,fixed=fixed,find_termfreq=True,find_collocations=True)
     pdfFreq.load()
     files = CSVFinder().crawl_html(url)
     for url,html in files:

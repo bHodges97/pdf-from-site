@@ -1,6 +1,7 @@
 import scholarly
 import csv
 from download import download
+from pdffreq import PDFFreq
 
 
 class Crawler():
@@ -23,21 +24,31 @@ class Crawler():
         for x in search_query:
             if 'eprint' in x.bib:
                 with open(self.outfile,"a") as f:
+                    print("Found ",x.bib["title"])
                     csv.DictWriter(f, fieldnames=fieldnames).writerow(x.bib)
                 count+=1
                 if count == limit:
                     break
 
     def download_all(self):
+        files = []
         with open(self.outfile) as csvfile:
             reader = csv.DictReader(csvfile)
             for idx,row in enumerate(reader):
                 print(row['title'])
                 url = row['eprint']
-                download(url,file_name=str(idx))
+                out = download(url)
+                files.append((out,row['title']))
+
+        return files
 
 
 if __name__ == "__main__":
     c = Crawler()
-    #c.query("hpc")
-    c.download()
+    #c.query("hpc",limit=1000)
+    files = c.download_all()
+    pdfFreq = PDFFreq()
+    #files = pdfFreq.list_directory("./downloads")
+    for url,html in files:
+        pdfFreq.add_pdf(url,html)
+    pdfFreq.save()
