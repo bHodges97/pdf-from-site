@@ -111,7 +111,7 @@ class PDFFinder(HTMLParser):
             for name,val in attr:
                 if name == "href" and val:
                     url = val
-                    if ".pdf" == val.lower()[-4:]:
+                    if val.lower().endswith(".pdf"):
                         self.pdflist.add(url)
                         return
                 if name == "title" and "pdf" in val.lower():
@@ -133,7 +133,7 @@ class PDFFinder(HTMLParser):
     def pdflink(self):
         words = ["epdf","supplement","google","search"]
         pdfs = [x for x in self.pdflist if all([y not in x.lower() for y in words])]
-        pdfs = [x for x in pdfs if x[:2] != "//"]
+        pdfs = [x for x in pdfs if not x.startswith("//")]
 
         if len(pdfs) == 0:
             return ""
