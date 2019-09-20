@@ -25,10 +25,10 @@ class Classifier():
             return
         save_npz(f'{path}/tfs.npz', self.tf, ["none"])
 
-    def classify(self, clusters=None, verbose=False, plot=False):
+    def classify(self, dims=2, clusters=None, verbose=False, plot=False):
         self.tfidf = self._tfidf_transform(self.tf)
         self.clusters = clusters
-        svd = TruncatedSVD(n_components=2)
+        svd = TruncatedSVD(n_components=dims)
         reduced = svd.fit_transform(self.tfidf)
 
         if not clusters:
