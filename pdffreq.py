@@ -27,7 +27,7 @@ except LookupError:
 
 class PDFFreq():
     """
-    Converts list of (pdf,html) to a term frequency matrix
+    Converts list of (pdf,title) to a term frequency matrix
     """
     def __init__(self, exclude = [], find_termfreq = True, find_collocations = False, fixed = []):
         self.pdf_stopwords = set(stopwords.words('english'))
@@ -100,7 +100,7 @@ class PDFFreq():
         self.tfs = tfs[kept_indices]
         return self.X
 
-    def add_pdf(self, file_path, html=""):
+    def add_pdf(self, file_path, title=""):
         if os.path.isfile(file_path):
             print("Adding:", file_path)
         else:
@@ -126,7 +126,7 @@ class PDFFreq():
             self.bigram_freq(words, counter)
 
         #save
-        self.pdfs.append([self._nextid,html,phash])
+        self.pdfs.append([self._nextid,title,phash])
         self._nextid+=1
         self.hashes.add(phash)
 
