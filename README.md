@@ -33,10 +33,10 @@ from pdffreq import PDFFreq
 url = "https://hps.vi4io.org/research/publications?csvlist"
 words = ["et","al","example","kunkel","see","figure","limitless","per"]
 pdfFreq = PDFFreq(words,find_termfreq=False,find_collocations=True)
-pdfFreq.load_csv()
+pdfFreq.load()
 files = CSVFinder().crawl_html(url)
 for url,html in files:
   pdfFreq.add_pdf(url,html)
-pdfFreq.save_csv(max_count=1000)
+pdfFreq.save(max_count=1000)
 
 ```
