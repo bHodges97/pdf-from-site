@@ -15,7 +15,7 @@ class Crawler():
         pubs = []
         self.files = []
         fieldnames = ['abstract','author','eprint','title','url']
-        with open(self.outfile,"w") as f:
+        with open(path,"w") as f:
             f.write(",".join(fieldnames) + "\n")
         for x in search_query:
             if 'eprint' in x.bib:
