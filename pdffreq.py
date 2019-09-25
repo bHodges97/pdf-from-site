@@ -171,12 +171,12 @@ class PDFFreq():
                 counter[idx]+=1
         return counter
 
-    def load(self):
+    def load(self,path="./"):
         try:
-            X,vocab,fixed = load_npz("tfs.npz")
+            X,vocab,fixed = load_npz(path+"tfs.npz")
             self.fixed = frozenset(set(fixed) | self.fixed)
 
-            with open("papers.csv","r",encoding='utf-8') as f:
+            with open(path+"papers.csv","r",encoding='utf-8') as f:
                 reader = csv.reader(f)
                 for idx,html,phash in reader:
                     idx = int(idx)
@@ -197,17 +197,17 @@ class PDFFreq():
 
         print("Load success")
 
-    def save(self, max_count = 10000,minfreq=2):
+    def save(self, path= "./", max_count = 10000,minfreq=2):
         X = self.count_vectorize(limit=max_count,low=minfreq)
         imap = {v:k for k,v in self.vocab.items()}
         vocab = [imap[i] for i in range(len(self.vocab))]
         del imap
 
         print("Writing numpy matrix and vocab")
-        save_npz('tfs.npz', self.X, vocab, self.fixed)
+        save_npz(path+'tfs.npz', self.X, vocab, self.fixed)
 
         print("Writing papers.csv")
-        with open("papers.csv","w",encoding='utf-8') as f:
+        with open(path+"papers.csv","w",encoding='utf-8') as f:
             c = csv.writer(f,quoting=csv.QUOTE_NONNUMERIC)
             for idx,html,phash in self.pdfs:
                 c.writerow([idx,html,phash])
