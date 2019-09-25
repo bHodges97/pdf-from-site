@@ -26,14 +26,14 @@ class Crawler():
                 if count == limit:
                     break
 
-    def download_all(self,path="out.csv",out="./downloads"):
+    def download_all(self,path="out.csv",outpath="./downloads"):
         files = []
         with open(path) as csvfile:
             reader = csv.DictReader(csvfile)
             for idx,row in enumerate(reader):
                 print(row['title'])
                 url = row['eprint']
-                out = download(url,path=out,save_copy=True)
+                out = download(url,path=outpath,save_copy=True)
                 files.append((out,row['title']))
 
         return files
