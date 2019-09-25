@@ -37,7 +37,7 @@ class Crawler():
             for idx,row in enumerate(reader):
                 print(row['title'])
                 url = row['eprint']
-                out = download(url)
+                out = download(url,save_copy=True)
                 files.append((out,row['title']))
 
         return files
