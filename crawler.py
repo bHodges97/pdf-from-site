@@ -49,6 +49,7 @@ if __name__ == "__main__":
     files = c.download_all()
     pdfFreq = PDFFreq()
     #files = pdfFreq.list_directory("./downloads")
+    pdfFreq.load()
     for url,html in files:
         pdfFreq.add_pdf(url,html)
     pdfFreq.save()
