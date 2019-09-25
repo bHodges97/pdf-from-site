@@ -9,7 +9,7 @@ class Crawler():
     Crawls google scholar for pdfs
     Use download_all to download the pdfs
     """
-    def query(self,path="out.csv",query,limit = 50):
+    def query(self,query,path="out.csv",limit = 50):
         search_query = scholarly.search_pubs_query(query)
         count = 0
         pubs = []
